@@ -26,13 +26,17 @@ Exécuté manuellement (au setup / lors d'une mise à jour des données). Il :
 
 1. Télécharge les tracés ferrés IDFM, **filtre le mode = Métro**, conserve l'indice de ligne.
 2. Télécharge les emplacements de gares IDFM, filtre métro, récupère nom + coordonnées.
-3. Récupère un fond minimaliste léger : contour de Paris + la Seine (open data Ville de Paris).
+3. Récupère un fond minimaliste léger : les arrondissements de Paris (open data Ville de Paris) — donnent le contour de Paris + un repère de quartiers discret.
 4. Produit dans `public/data/` :
-   - `metro-lines.geojson` — tracés, une feature par segment avec propriété `lineId`.
-   - `metro-stations.geojson` — points stations avec `name` et `lineIds`.
-   - `paris-outline.geojson` — contour de Paris (fond).
-   - `seine.geojson` — la Seine (fond).
-   - `lines.json` — métadonnées : `{ id, name, color, terminus[] }`.
+   - `metro-lines.geojson` — tracés, une feature par segment avec propriétés `lineId` et `color`.
+   - `metro-stations.geojson` — points stations dédupliqués, avec `name` et `lineIds` (tableau).
+   - `paris-arrondissements.geojson` — fond de plan.
+   - `lines.json` — métadonnées : `{ id, name, color, order }`.
+
+**Sources IDFM/Paris (API Opendatasoft Explore v2.1, export GeoJSON) :**
+- Tracés : `traces-du-reseau-ferre-idf` (champs `mode`, `indice_lig`, `colourweb_hexa`, filtre `mode="METRO"`).
+- Stations : `emplacement-des-gares-idf` (champs `mode`, `indice_lig`, `nom_gares`, `id_ref_zdc`, `geo_point_2d`, filtre `mode="METRO"`).
+- Fond : `arrondissements` sur `opendata.paris.fr`.
 
 ### Couleurs
 
@@ -55,13 +59,13 @@ Les **couleurs officielles RATP** des 16 lignes sont figées dans un mapping en 
 
 ## Rendu & interactions (couches MapLibre)
 
-- **Fond** : couleur neutre + Seine + contour de Paris (discrets, non interactifs).
-- **Tracés** : une couche `line`, colorée par la propriété `color`/`lineId` de chaque feature.
-- **Surbrillance** : au clic (sur la légende **ou** sur un tracé) → `selectedLineId` est défini. Les autres lignes sont **estompées** (opacité ~0.15) via une expression MapLibre pilotée par la sélection ; la ligne active passe au premier plan, trait épaissi. Sans sélection, toutes les lignes sont à pleine opacité.
-- **Stations** : couche de points (dots).
-- **Labels stations** : couches `symbol` (`text-field` = nom) :
-  - toggle global → visibilité de la couche « tous les noms » ;
-  - toggle « ligne sélectionnée » → couche filtrée n'affichant que les stations de la ligne active.
+- **Fond** : couleur neutre + arrondissements de Paris (remplissage très clair + bordures discrètes, non interactif).
+- **Tracés** : couche `line` de base (colorée par `color`) + couche `line` de surbrillance filtrée sur la ligne sélectionnée, dessinée au-dessus (trait épaissi, premier plan).
+- **Surbrillance** : au clic (sur la légende **ou** sur un tracé) → `selectedLineId` est défini. La couche de base est **estompée** (opacité ~0.15) quand une ligne est sélectionnée ; la couche de surbrillance affiche la ligne active à pleine opacité au-dessus. Sans sélection, la base est à pleine opacité et la surbrillance vide. Re-cliquer la ligne active la désélectionne.
+- **Stations** : couche `circle` de base + couche `circle` de surbrillance (stations de la ligne active), même logique d'estompage.
+- **Labels stations** : rendus en **overlay HTML** (composant Vue) positionné via `map.project()` sur les évènements de déplacement/zoom — pas de couche `symbol`, donc **aucun serveur de glyphs** requis (100 % offline) et contrôle CSS total. Deux toggles :
+  - « tous les noms » → affiche les labels de toutes les stations ;
+  - « noms de la ligne sélectionnée » → affiche uniquement les labels des stations de la ligne active.
 
 ## Gestion d'erreurs
 
