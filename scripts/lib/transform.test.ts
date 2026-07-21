@@ -70,8 +70,10 @@ describe('buildStationsCollection', () => {
     expect(out.features).toHaveLength(2) // Bastille + Louis Blanc (tram exclu)
     const bastille = out.features.find((f) => f.properties.name === 'Bastille')!
     expect(bastille.properties.lineIds).toEqual(['1', '5'])
+    expect(bastille.properties.id).toBe('Z1')
     const lb = out.features.find((f) => f.properties.name === 'Louis Blanc')!
     expect(lb.properties.lineIds).toEqual(['7bis'])
+    expect(lb.properties.id).toBe('Z2')
   })
 
   it('préserve la géométrie du premier point rencontré', () => {

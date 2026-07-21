@@ -6,15 +6,25 @@ import type { StationProps } from '../types'
 import { useMapController } from '../composables/useMapController'
 import StationLabels from './StationLabels.vue'
 
-const props = defineProps<{
-  lines: FeatureCollection
-  stations: FeatureCollection
-  arrondissements: FeatureCollection
-  selectedLineId: string | null
-  showAllLabels: boolean
-  showSelectedLineLabels: boolean
+const props = withDefaults(
+  defineProps<{
+    lines: FeatureCollection
+    stations: FeatureCollection
+    arrondissements: FeatureCollection
+    selectedLineId: string | null
+    showAllLabels: boolean
+    showSelectedLineLabels: boolean
+    pinnedKeys?: Set<string>
+  }>(),
+  {
+    pinnedKeys: () => new Set<string>(),
+  },
+)
+const emit = defineEmits<{
+  selectLine: [id: string]
+  backgroundClick: []
+  toggleStation: [key: string]
 }>()
-const emit = defineEmits<{ selectLine: [id: string]; backgroundClick: [] }>()
 
 const container = ref<HTMLElement | null>(null)
 const mapRef = shallowRef<MapLibreMap | null>(null)
@@ -32,8 +42,11 @@ onMounted(() => {
     controller.applySelection(props.selectedLineId)
     mapRef.value = map
   })
-  controller.onLineClick((id) => emit('selectLine', id))
-  controller.onBackgroundClick(() => emit('backgroundClick'))
+  controller.onMapClick({
+    station: (key) => emit('toggleStation', key),
+    line: (id) => emit('selectLine', id),
+    background: () => emit('backgroundClick'),
+  })
 })
 
 watch(
@@ -53,6 +66,7 @@ onBeforeUnmount(() => controller.destroy())
       :selected-line-id="selectedLineId"
       :show-all-labels="showAllLabels"
       :show-selected-line-labels="showSelectedLineLabels"
+      :pinned-keys="pinnedKeys"
     />
   </div>
 </template>

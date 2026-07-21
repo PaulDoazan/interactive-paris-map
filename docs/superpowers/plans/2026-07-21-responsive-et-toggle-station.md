@@ -44,15 +44,93 @@ src/
 
 ---
 
-## Task 1: Identité de station (`stationKey`, pur)
+## Task 1: Identité de station stable (`id` + `stationKey`, pur)
+
+**Contexte / pourquoi `id` et pas les coordonnées :** MapLibre tuile les sources GeoJSON en
+interne et **quantifie les géométries** — les coordonnées renvoyées par `queryRenderedFeatures`
+peuvent différer des coordonnées source (surtout dézoomé). Une clé basée sur `"lng,lat"` ne
+matcherait donc pas de façon fiable entre le clic (feature rendu) et l'overlay (feature source).
+Les **propriétés**, elles, traversent MapLibre intactes. On identifie donc chaque station par un
+`id` stable (le `id_ref_zdc` déjà utilisé comme clé de déduplication), porté dans `StationProps`.
 
 **Files:**
+- Modify: `src/types.ts` (StationProps gagne `id`)
+- Modify: `scripts/lib/transform.ts`, `scripts/lib/transform.test.ts` (émettre `id`)
+- Régénère : `public/data/metro-stations.geojson` (via `npm run data:prep`)
 - Create: `src/map/stationKey.ts`, `src/map/stationKey.test.ts`
 
 **Interfaces:**
-- Produces: `stationKey(f: Feature<Point, StationProps>): string` — retourne `"lng,lat"` depuis les coordonnées géométriques.
+- Produces: `StationProps = { id: string; name: string; lineIds: string[] }` ;
+  `stationKey(f: Feature<Point, StationProps>): string` retourne `f.properties.id`.
 
-- [ ] **Step 1: Écrire le test `src/map/stationKey.test.ts`**
+- [ ] **Step 1: Ajouter `id` à `StationProps` dans `src/types.ts`**
+
+Remplacer l'interface `StationProps` par :
+
+```ts
+export interface StationProps {
+  id: string
+  name: string
+  lineIds: string[]
+}
+```
+
+- [ ] **Step 2: Émettre `id` dans `buildStationsCollection` (`scripts/lib/transform.ts`)**
+
+Modifier `buildStationsCollection` pour conserver l'`id` (= clé `id_ref_zdc`) et le poser dans les
+props. Le type du `Map` interne gagne `id`, et les props aussi :
+
+```ts
+export function buildStationsCollection(fc: FeatureCollection): FeatureCollection<Point, StationProps> {
+  const byZone = new Map<string, { id: string; geometry: Point; name: string; lineIds: Set<string> }>()
+  for (const f of fc.features) {
+    if (f.properties?.mode !== 'METRO') continue
+    const key = String(f.properties.id_ref_zdc)
+    const lineId = normalizeLineId(String(f.properties.indice_lig))
+    const existing = byZone.get(key)
+    if (existing) {
+      existing.lineIds.add(lineId)
+    } else {
+      byZone.set(key, {
+        id: key,
+        geometry: f.geometry as Point,
+        name: String(f.properties.nom_gares),
+        lineIds: new Set([lineId]),
+      })
+    }
+  }
+  const features: Feature<Point, StationProps>[] = [...byZone.values()].map((s) => {
+    const props: StationProps = {
+      id: s.id,
+      name: s.name,
+      lineIds: [...s.lineIds].sort((a, b) => orderIndex(a) - orderIndex(b)),
+    }
+    return { type: 'Feature', geometry: s.geometry, properties: props } as Feature<Point, StationProps>
+  })
+  return { type: 'FeatureCollection', features }
+}
+```
+
+- [ ] **Step 3: Mettre à jour `scripts/lib/transform.test.ts`**
+
+Lire le fichier et mettre à jour les assertions sur les stations pour inclure le nouveau champ
+`id` (= la valeur `id_ref_zdc` du fixture, ex. `'Z1'` pour Bastille, `'Z2'` pour Louis Blanc).
+Ajouter au moins une assertion explicite que `props.id` vaut l'`id_ref_zdc` attendu. Ne pas
+casser les assertions existantes de dédup/tri/géométrie.
+
+- [ ] **Step 4: Lancer les tests transform pour vérifier**
+
+Run: `npx vitest run scripts/lib/transform.test.ts`
+Expected: PASS (avec les nouvelles assertions `id`).
+
+- [ ] **Step 5: Régénérer les données stations**
+
+Run: `npm run data:prep`
+Expected: logs OK, `16 lignes`, ~321 stations. Vérifier que les stations ont un `id` :
+`node -e "const s=JSON.parse(require('fs').readFileSync('public/data/metro-stations.geojson','utf8')); console.log(s.features[0].properties)"`
+Expected: un objet avec `id` (string non vide), `name`, `lineIds`.
+
+- [ ] **Step 6: Écrire le test `src/map/stationKey.test.ts`**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -60,59 +138,58 @@ import type { Feature, Point } from 'geojson'
 import type { StationProps } from '../types'
 import { stationKey } from './stationKey'
 
-function feat(lng: number, lat: number, name = 'X'): Feature<Point, StationProps> {
+function feat(id: string): Feature<Point, StationProps> {
   return {
     type: 'Feature',
-    geometry: { type: 'Point', coordinates: [lng, lat] },
-    properties: { name, lineIds: ['1'] },
+    geometry: { type: 'Point', coordinates: [2.35, 48.85] },
+    properties: { id, name: 'X', lineIds: ['1'] },
   }
 }
 
 describe('stationKey', () => {
-  it('dérive une clé "lng,lat" depuis les coordonnées', () => {
-    expect(stationKey(feat(2.35, 48.85))).toBe('2.35,48.85')
+  it('retourne l’id stable de la station', () => {
+    expect(stationKey(feat('Z1'))).toBe('Z1')
   })
 
-  it('est déterministe et distingue des coordonnées différentes', () => {
-    expect(stationKey(feat(2.3, 48.8))).toBe('2.3,48.8')
-    expect(stationKey(feat(2.3, 48.8))).not.toBe(stationKey(feat(2.31, 48.8)))
+  it('distingue des stations différentes', () => {
+    expect(stationKey(feat('Z1'))).not.toBe(stationKey(feat('Z2')))
   })
 })
 ```
 
-- [ ] **Step 2: Lancer pour vérifier l'échec**
+- [ ] **Step 7: Lancer pour vérifier l'échec**
 
 Run: `npx vitest run src/map/stationKey.test.ts`
 Expected: FAIL (module `./stationKey` introuvable).
 
-- [ ] **Step 3: Créer `src/map/stationKey.ts`**
+- [ ] **Step 8: Créer `src/map/stationKey.ts`**
 
 ```ts
 import type { Feature, Point } from 'geojson'
 import type { StationProps } from '../types'
 
-// Identité stable d'une station, dérivée de ses coordonnées géographiques.
+// Identité stable d'une station (id_ref_zdc), préservée à travers MapLibre :
+// les propriétés ne sont pas quantifiées, contrairement aux géométries.
 export function stationKey(f: Feature<Point, StationProps>): string {
-  const [lng, lat] = f.geometry.coordinates
-  return `${lng},${lat}`
+  return f.properties.id
 }
 ```
 
-- [ ] **Step 4: Lancer pour vérifier le succès**
+- [ ] **Step 9: Lancer pour vérifier le succès**
 
 Run: `npx vitest run src/map/stationKey.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Vérifier le build**
+- [ ] **Step 10: Vérifier build + suite complète**
 
-Run: `npm run build`
-Expected: 0 erreur TS, build réussi.
+Run: `npm test && npm run build`
+Expected: tous les tests PASS, build réussi 0 erreur TS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 11: Commit (données incluses)**
 
 ```bash
-git add src/map/stationKey.ts src/map/stationKey.test.ts
-git commit -m "feat: identité de station dérivée des coordonnées"
+git add src/types.ts scripts/lib/transform.ts scripts/lib/transform.test.ts public/data/metro-stations.geojson src/map/stationKey.ts src/map/stationKey.test.ts
+git commit -m "feat: identité de station stable par id (id_ref_zdc)"
 ```
 
 ---
@@ -270,11 +347,11 @@ import { describe, it, expect } from 'vitest'
 import { computeVisibleLabelStations } from './labels'
 
 const stations = [
-  { properties: { name: 'A', lineIds: ['1', '5'] } },
-  { properties: { name: 'B', lineIds: ['4'] } },
-  { properties: { name: 'C', lineIds: ['5'] } },
+  { properties: { id: 'A', name: 'A', lineIds: ['1', '5'] } },
+  { properties: { id: 'B', name: 'B', lineIds: ['4'] } },
+  { properties: { id: 'C', name: 'C', lineIds: ['5'] } },
 ]
-const keyOf = (s: { properties: { name: string } }) => s.properties.name
+const keyOf = (s: { properties: { id: string } }) => s.properties.id
 const noPins = new Set<string>()
 
 describe('computeVisibleLabelStations', () => {
@@ -471,9 +548,9 @@ import StationLabels from './StationLabels.vue'
 
 const stations = [
   { type: 'Feature', geometry: { type: 'Point', coordinates: [2.35, 48.85] },
-    properties: { name: 'Bastille', lineIds: ['1', '5'] } },
+    properties: { id: 'Z1', name: 'Bastille', lineIds: ['1', '5'] } },
   { type: 'Feature', geometry: { type: 'Point', coordinates: [2.33, 48.86] },
-    properties: { name: 'Opéra', lineIds: ['3'] } },
+    properties: { id: 'Z2', name: 'Opéra', lineIds: ['3'] } },
 ]
 
 // Fausse instance MapLibre : project renvoie une position fixe, on/off no-op.
@@ -514,7 +591,7 @@ describe('StationLabels', () => {
     const w = mount(StationLabels, {
       props: { map: fakeMap, stations, selectedLineId: null,
         showAllLabels: false, showSelectedLineLabels: true,
-        pinnedKeys: new Set(['2.33,48.86']) },
+        pinnedKeys: new Set(['Z2']) },
     })
     const labels = w.findAll('.station-label')
     expect(labels).toHaveLength(1)
@@ -1057,6 +1134,6 @@ git commit -m "feat: layout responsive avec bottom sheet mobile"
 
 ## Notes de mise en œuvre
 
-- **Cohérence des clés de station** : le controller lit les coordonnées du feature *rendu* par `queryRenderedFeatures`, `StationLabels` lit les coordonnées du feature *source* — pour un point, les deux valeurs numériques sont identiques (mêmes données source), donc `stationKey` produit la même chaîne des deux côtés. Si un jour une divergence de précision apparaissait, normaliser les coordonnées (ex. `toFixed(6)`) dans `stationKey`.
+- **Cohérence des clés de station** : l'identité est le champ `properties.id` (= `id_ref_zdc`), pas les coordonnées. MapLibre quantifie les *géométries* des sources GeoJSON dans ses tuiles internes (les coordonnées de `queryRenderedFeatures` peuvent différer de la source, surtout dézoomé), mais préserve les *propriétés* intactes. Le controller lit donc `properties.id` du feature rendu et `StationLabels` lit `properties.id` du feature source — mêmes valeurs garanties. C'est pourquoi Task 1 porte l'`id` jusque dans `StationProps`.
 - **Dimming vs pins** : quand une ligne est sélectionnée, les pastilles des autres lignes sont estompées (opacité 0.25) mais restent cliquables (`queryRenderedFeatures` ignore l'opacité) et un nom épinglé reste lisible (overlay HTML indépendant).
 - **Resize MapLibre** : MapLibre v4 observe la taille du conteneur (ResizeObserver) — la rotation d'écran est gérée automatiquement, aucun `map.resize()` manuel nécessaire.
