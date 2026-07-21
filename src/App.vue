@@ -5,6 +5,7 @@ import { useMapState } from './composables/useMapState'
 import MetroMap from './components/MetroMap.vue'
 import LineLegend from './components/LineLegend.vue'
 import MapControls from './components/MapControls.vue'
+import PanelSheet from './components/PanelSheet.vue'
 
 const data = useMetroData()
 const state = useMapState()
@@ -25,8 +26,7 @@ onMounted(() => data.load())
 
 <template>
   <div class="app">
-    <aside class="panel">
-      <h1>Métro de Paris</h1>
+    <PanelSheet title="Métro de Paris">
       <MapControls
         :show-all-labels="state.showAllLabels.value"
         :show-selected-line-labels="state.showSelectedLineLabels.value"
@@ -40,7 +40,7 @@ onMounted(() => data.load())
         :selected-line-id="state.selectedLineId.value"
         @select="state.selectLine"
       />
-    </aside>
+    </PanelSheet>
 
     <section class="stage">
       <p v-if="!webglSupported" class="status error">
@@ -74,12 +74,13 @@ body { font-family: system-ui, -apple-system, sans-serif; }
 
 <style scoped>
 .app { display: flex; height: 100%; }
-.panel {
-  width: 280px; flex: 0 0 auto; padding: 16px;
-  overflow-y: auto; border-right: 1px solid #e5e3dc; background: #fafaf8;
-}
-.panel h1 { font-size: 18px; margin: 0 0 16px; }
 .stage { position: relative; flex: 1 1 auto; }
 .status { padding: 24px; font-size: 15px; }
 .status.error { color: #b00020; }
+
+/* Mobile : carte plein écran, la feuille (PanelSheet) se superpose. */
+@media (max-width: 767px) {
+  .app { display: block; position: relative; }
+  .stage { position: absolute; inset: 0; }
+}
 </style>
