@@ -58,7 +58,9 @@ onMounted(() => data.load())
         :selected-line-id="state.selectedLineId.value"
         :show-all-labels="state.showAllLabels.value"
         :show-selected-line-labels="state.showSelectedLineLabels.value"
+        :pinned-keys="state.pinnedStations.value"
         @select-line="state.selectLine"
+        @toggle-station="state.toggleStation"
         @background-click="state.reset"
       />
     </section>
