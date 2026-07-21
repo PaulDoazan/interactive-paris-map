@@ -9,6 +9,17 @@ import MapControls from './components/MapControls.vue'
 const data = useMetroData()
 const state = useMapState()
 
+function detectWebgl(): boolean {
+  try {
+    const canvas = document.createElement('canvas')
+    return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+  } catch {
+    return false
+  }
+}
+
+const webglSupported = detectWebgl()
+
 onMounted(() => data.load())
 </script>
 
@@ -32,7 +43,10 @@ onMounted(() => data.load())
     </aside>
 
     <section class="stage">
-      <p v-if="data.loading.value" class="status">Chargement du réseau…</p>
+      <p v-if="!webglSupported" class="status error">
+        Votre navigateur ne supporte pas WebGL, nécessaire à l'affichage de la carte.
+      </p>
+      <p v-else-if="data.loading.value" class="status">Chargement du réseau…</p>
       <p v-else-if="data.error.value" class="status error">
         Erreur : {{ data.error.value }}
       </p>
