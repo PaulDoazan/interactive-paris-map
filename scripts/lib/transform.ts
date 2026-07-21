@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, Point } from 'geojson'
+import type { Feature, FeatureCollection, Point, Geometry } from 'geojson'
 import { getLineColor } from '../../src/data/lineColors'
 import type { LineMeta, LineProps, StationProps } from '../../src/types'
 import { normalizeLineId } from './normalize'
@@ -11,18 +11,18 @@ function orderIndex(lineId: string): number {
   return i === -1 ? LINE_ORDER.length : i
 }
 
-export function filterMetroLineFeatures(fc: FeatureCollection): Feature[] {
+export function filterMetroLineFeatures(fc: FeatureCollection): Feature<Geometry, LineProps>[] {
   return fc.features
     .filter((f) => f.properties?.mode === 'METRO')
     .map((f) => {
       const lineId = normalizeLineId(String(f.properties!.indice_lig))
       const color = getLineColor(lineId, f.properties!.colourweb_hexa as string | undefined)
       const props: LineProps = { lineId, color }
-      return { type: 'Feature', geometry: f.geometry, properties: props } as Feature
+      return { type: 'Feature', geometry: f.geometry, properties: props } as Feature<Geometry, LineProps>
     })
 }
 
-export function buildStationsCollection(fc: FeatureCollection): FeatureCollection {
+export function buildStationsCollection(fc: FeatureCollection): FeatureCollection<Point, StationProps> {
   const byZone = new Map<string, { geometry: Point; name: string; lineIds: Set<string> }>()
   for (const f of fc.features) {
     if (f.properties?.mode !== 'METRO') continue
@@ -39,12 +39,12 @@ export function buildStationsCollection(fc: FeatureCollection): FeatureCollectio
       })
     }
   }
-  const features: Feature[] = [...byZone.values()].map((s) => {
+  const features: Feature<Point, StationProps>[] = [...byZone.values()].map((s) => {
     const props: StationProps = {
       name: s.name,
       lineIds: [...s.lineIds].sort((a, b) => orderIndex(a) - orderIndex(b)),
     }
-    return { type: 'Feature', geometry: s.geometry, properties: props } as Feature
+    return { type: 'Feature', geometry: s.geometry, properties: props } as Feature<Point, StationProps>
   })
   return { type: 'FeatureCollection', features }
 }
