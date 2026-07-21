@@ -1,8 +1,8 @@
 import type { Feature, Point } from 'geojson'
 import type { StationProps } from '../types'
 
-// Identité stable d'une station, dérivée de ses coordonnées géographiques.
+// Identité stable d'une station (id_ref_zdc), préservée à travers MapLibre :
+// les propriétés ne sont pas quantifiées, contrairement aux géométries.
 export function stationKey(f: Feature<Point, StationProps>): string {
-  const [lng, lat] = f.geometry.coordinates
-  return `${lng},${lat}`
+  return f.properties.id
 }

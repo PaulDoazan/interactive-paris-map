@@ -11,6 +11,7 @@ export interface LineProps {
 }
 
 export interface StationProps {
+  id: string
   name: string
   lineIds: string[]
 }

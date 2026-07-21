@@ -6,9 +6,9 @@ import StationLabels from './StationLabels.vue'
 
 const stations: Feature<Point, StationProps>[] = [
   { type: 'Feature', geometry: { type: 'Point', coordinates: [2.35, 48.85] },
-    properties: { name: 'Bastille', lineIds: ['1', '5'] } },
+    properties: { id: 'Z1', name: 'Bastille', lineIds: ['1', '5'] } },
   { type: 'Feature', geometry: { type: 'Point', coordinates: [2.33, 48.86] },
-    properties: { name: 'Opéra', lineIds: ['3'] } },
+    properties: { id: 'Z2', name: 'Opéra', lineIds: ['3'] } },
 ]
 
 // Fausse instance MapLibre : project renvoie une position fixe, on/off no-op.

@@ -23,7 +23,7 @@ export function filterMetroLineFeatures(fc: FeatureCollection): Feature<Geometry
 }
 
 export function buildStationsCollection(fc: FeatureCollection): FeatureCollection<Point, StationProps> {
-  const byZone = new Map<string, { geometry: Point; name: string; lineIds: Set<string> }>()
+  const byZone = new Map<string, { id: string; geometry: Point; name: string; lineIds: Set<string> }>()
   for (const f of fc.features) {
     if (f.properties?.mode !== 'METRO') continue
     const key = String(f.properties.id_ref_zdc)
@@ -33,6 +33,7 @@ export function buildStationsCollection(fc: FeatureCollection): FeatureCollectio
       existing.lineIds.add(lineId)
     } else {
       byZone.set(key, {
+        id: key,
         geometry: f.geometry as Point,
         name: String(f.properties.nom_gares),
         lineIds: new Set([lineId]),
@@ -41,6 +42,7 @@ export function buildStationsCollection(fc: FeatureCollection): FeatureCollectio
   }
   const features: Feature<Point, StationProps>[] = [...byZone.values()].map((s) => {
     const props: StationProps = {
+      id: s.id,
       name: s.name,
       lineIds: [...s.lineIds].sort((a, b) => orderIndex(a) - orderIndex(b)),
     }

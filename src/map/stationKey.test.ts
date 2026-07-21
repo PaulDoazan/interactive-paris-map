@@ -3,21 +3,20 @@ import type { Feature, Point } from 'geojson'
 import type { StationProps } from '../types'
 import { stationKey } from './stationKey'
 
-function feat(lng: number, lat: number, name = 'X'): Feature<Point, StationProps> {
+function feat(id: string): Feature<Point, StationProps> {
   return {
     type: 'Feature',
-    geometry: { type: 'Point', coordinates: [lng, lat] },
-    properties: { name, lineIds: ['1'] },
+    geometry: { type: 'Point', coordinates: [2.35, 48.85] },
+    properties: { id, name: 'X', lineIds: ['1'] },
   }
 }
 
 describe('stationKey', () => {
-  it('dérive une clé "lng,lat" depuis les coordonnées', () => {
-    expect(stationKey(feat(2.35, 48.85))).toBe('2.35,48.85')
+  it('retourne l’id stable de la station', () => {
+    expect(stationKey(feat('Z1'))).toBe('Z1')
   })
 
-  it('est déterministe et distingue des coordonnées différentes', () => {
-    expect(stationKey(feat(2.3, 48.8))).toBe('2.3,48.8')
-    expect(stationKey(feat(2.3, 48.8))).not.toBe(stationKey(feat(2.31, 48.8)))
+  it('distingue des stations différentes', () => {
+    expect(stationKey(feat('Z1'))).not.toBe(stationKey(feat('Z2')))
   })
 })

@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { computeVisibleLabelStations } from './labels'
 
 const stations = [
-  { properties: { name: 'A', lineIds: ['1', '5'] } },
-  { properties: { name: 'B', lineIds: ['4'] } },
-  { properties: { name: 'C', lineIds: ['5'] } },
+  { properties: { id: 'Z1', name: 'A', lineIds: ['1', '5'] } },
+  { properties: { id: 'Z2', name: 'B', lineIds: ['4'] } },
+  { properties: { id: 'Z3', name: 'C', lineIds: ['5'] } },
 ]
 
 describe('computeVisibleLabelStations', () => {
