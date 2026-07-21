@@ -4,23 +4,31 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { Feature, Point } from 'geojson'
 import type { StationProps } from '../types'
 import { computeVisibleLabelStations } from '../map/labels'
+import { stationKey } from '../map/stationKey'
 
-const props = defineProps<{
-  map: MapLibreMap | null
-  stations: Feature<Point, StationProps>[]
-  selectedLineId: string | null
-  showAllLabels: boolean
-  showSelectedLineLabels: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    map: MapLibreMap | null
+    stations: Feature<Point, StationProps>[]
+    selectedLineId: string | null
+    showAllLabels: boolean
+    showSelectedLineLabels: boolean
+    pinnedKeys?: Set<string>
+  }>(),
+  {
+    pinnedKeys: () => new Set<string>(),
+  },
+)
 
 // Compteur incrémenté à chaque frame pour forcer le recalcul des positions.
 const tick = ref(0)
 
 const visible = computed(() =>
-  computeVisibleLabelStations(props.stations, {
+  computeVisibleLabelStations(props.stations, stationKey, {
     selectedLineId: props.selectedLineId,
     showAllLabels: props.showAllLabels,
     showSelectedLineLabels: props.showSelectedLineLabels,
+    pinnedKeys: props.pinnedKeys,
   }),
 )
 
@@ -29,7 +37,7 @@ function positioned() {
   const map = props.map
   if (!map) return []
   return visible.value.map((f) => {
-    const [lng, lat] = (f.geometry as Point).coordinates
+    const [lng, lat] = f.geometry.coordinates
     const p = map.project([lng, lat])
     return {
       name: f.properties.name,

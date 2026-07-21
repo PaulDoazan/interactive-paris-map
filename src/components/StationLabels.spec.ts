@@ -9,7 +9,7 @@ const stations: Feature<Point, StationProps>[] = [
     properties: { id: 'Z1', name: 'Bastille', lineIds: ['1', '5'] } },
   { type: 'Feature', geometry: { type: 'Point', coordinates: [2.33, 48.86] },
     properties: { id: 'Z2', name: 'Opéra', lineIds: ['3'] } },
-]
+] as const
 
 // Fausse instance MapLibre : project renvoie une position fixe, on/off no-op.
 const fakeMap = {
@@ -27,7 +27,7 @@ describe('StationLabels', () => {
     expect(w.findAll('.station-label')).toHaveLength(0)
   })
 
-  it('affiche les labels de la ligne sélectionnée', async () => {
+  it('affiche les labels de la ligne sélectionnée', () => {
     const w = mount(StationLabels, {
       props: { map: fakeMap, stations, selectedLineId: '5',
         showAllLabels: false, showSelectedLineLabels: true },
@@ -43,5 +43,16 @@ describe('StationLabels', () => {
         showAllLabels: true, showSelectedLineLabels: false },
     })
     expect(w.findAll('.station-label')).toHaveLength(2)
+  })
+
+  it('affiche une station épinglée même sans sélection', () => {
+    const w = mount(StationLabels, {
+      props: { map: fakeMap, stations, selectedLineId: null,
+        showAllLabels: false, showSelectedLineLabels: true,
+        pinnedKeys: new Set(['Z2']) },
+    })
+    const labels = w.findAll('.station-label')
+    expect(labels).toHaveLength(1)
+    expect(labels[0].text()).toBe('Opéra')
   })
 })
